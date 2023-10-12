@@ -1,0 +1,326 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Dashboard extends CI_Controller{
+
+  public function __construct()
+  {
+    parent::__construct();
+    $this->load->model('Materi_model');
+    $this->load->model('Tugas_model');
+    $this->load->model('Nilai_model');
+  }
+
+  public function index()
+  {
+    $data['title'] = 'Dashboard';
+    // $where = [
+    //   'id_dosen' => $this->session->id_dosen,
+    //   'id_dosen' => '>'.time()
+    // ];
+    $data['tugas'] = $this->Tugas_model->getTugas()->result();
+    $this->load->view('layouts/header',$data);
+    $this->load->view('dashboard/dashboard');
+    $this->load->view('layouts/footer');
+  }
+
+// Modul Materi-----------------------------------------------------------------
+  public function tambah_materi()
+  {
+    $data['title'] = 'Tambah Materi';
+    $this->load->view('layouts/header',$data);
+    $this->load->view('dashboard/tambah_materi');
+    $this->load->view('layouts/footer');
+  }
+
+  public function lihat_materi()
+  {
+    $data['materi'] = $this->Materi_model->getMateri()->result();
+    $data['title']  = 'Lihat Materi';
+
+    $this->load->view('layouts/header',$data);
+    $this->load->view('dashboard/lihat_materi',$data);
+    $this->load->view('layouts/footer');
+  }
+
+  public function edit_materi($id)
+  {
+    $data['materi'] = $this->Materi_model->getMateriSingle($id)->row();
+    $data['title']  = 'Edit Materi';
+
+    $this->load->view('layouts/header',$data);
+    $this->load->view('dashboard/edit_materi',$data);
+    $this->load->view('layouts/footer');
+  }
+
+  public function proses_tambah_materi()
+    {
+      $this->form_validation->set_rules('nama_materi','nama materi','required');
+      $this->form_validation->set_rules('deskripsi','deskripsi','required');
+      $this->form_validation->set_rules('kelas','Kelas','required');
+
+      if (empty($_FILES['file_materi']['name'])) {
+        $this->form_validation->set_rules('file_materi','file materi','required');
+      }
+      if ($this->form_validation->run() == FALSE) {
+        $this->tambah_materi();
+      }else {
+        $nama_materi       = $this->input->post('nama_materi');
+        $deskripsi         = $this->input->post('deskripsi');
+        $kelas             = $this->input->post('kelas');
+        $matakuliah        = $this->input->post('matakuliah');
+
+        $config['upload_path']    = './uploads/';
+        $config['allowed_types']  = 'pdf|docx|pptx|ppt';
+        $config['max_size']       = 5000;
+
+        $this->load->library('upload', $config);
+
+        if (! $this->upload->do_upload('file_materi')) {
+          $this->session->set_flashdata('status','File gagal diupload.');
+          redirect(base_url('Dashboard/tambah_materi'));
+        }else {
+          $id_dosen    = $this->session->id_dosen;
+          $id_materi   = $this->Materi_model->idMateri();
+          $file_materi = $this->upload->data('file_name');
+          $date        = date('Y-m-d');
+
+          $data = array(
+              'id_materi'     => $id_materi,
+              'nama_materi'   => $nama_materi,
+              'deskripsi'     => $deskripsi,
+              'tanggal_upload'=> $date,
+              'kelas'         => $kelas,
+              'file_materi'   => $file_materi,
+              'id_dosen'      => $id_dosen,
+              'matakuliah'    => $matakuliah
+          );
+
+          $q = $this->Materi_model->insertMateri($data);
+
+          if ($q) {
+            redirect(base_url('Dashboard/lihat_materi'));
+          }
+        }
+      }
+    }
+
+    public function proses_edit_materi($id)
+    {
+      $data  = $this->input->post();
+      $query = $this->Materi_model->updateMateri($id,$data);
+      if ($query) {
+        return redirect(base_url('Dashboard/lihat_materi'));
+      }
+    }
+
+    public function hapus_materi($id)
+    {
+      $query = $this->Materi_model->deleteMateri($id);
+      if ($query) {
+        return redirect(base_url('Dashboard/lihat_materi'));
+      }
+    }
+// Akhir Modul Materi-----------------------------------------------------------
+
+// Modul Tugas------------------------------------------------------------------
+    public function tambah_tugas()
+    {
+      $data['title'] = 'Tambah tugas';
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/tambah_tugas');
+      $this->load->view('layouts/footer');
+    }
+
+    public function lihat_tugas()
+    {
+      $data['tugas']  = $this->Tugas_model->getTugas()->result();
+      $data['title']  = 'Lihat Tugas';
+
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/lihat_tugas',$data);
+      $this->load->view('layouts/footer');
+    }
+
+    public function proses_tambah_tugas()
+    {
+      $this->form_validation->set_rules('nama_tugas','nama tugas','required');
+      $this->form_validation->set_rules('deskripsi','deskripsi','required');
+      $this->form_validation->set_rules('batas_pengumpulan','batas','required');
+      $this->form_validation->set_rules('kelas','Kelas','required');
+      $this->form_validation->set_rules('matakuliah','Matakuliah','required');
+      $this->form_validation->set_rules('kategori','kategori','required');
+
+      if (empty($_FILES['file_tugas']['name'])) {
+        $this->form_validation->set_rules('file_tugas','file tugas','required');
+      }
+      if ($this->form_validation->run() == FALSE) {
+        $this->tambah_tugas();
+      }else {
+        $nama_tugas        = $this->input->post('nama_tugas');
+        $deskripsi         = $this->input->post('deskripsi');
+        $batas_pengumpulan = $this->input->post('batas_pengumpulan');
+        $kelas             = $this->input->post('kelas');
+        $matakuliah        = $this->input->post('matakuliah');
+        $kategori          = $this->input->post('kategori');
+
+        $config['upload_path']          = './uploads/';
+        $config['allowed_types']        = 'pdf|docx|pptx|ppt';
+        $config['max_size']             = 5000;
+
+        $this->load->library('upload', $config);
+
+        if (! $this->upload->do_upload('file_tugas')) {
+          $this->session->set_flashdata('status','File gagal diupload.');
+          redirect(base_url('Dashboard/tambah_tugas'));
+        }else {
+          $id_dosen   = $this->session->id_dosen;
+          $id_tugas   = $this->Tugas_model->idTugas();
+          $file_tugas = $this->upload->data('file_name');
+
+          $data = array(
+              'id_tugas'          => $id_tugas,
+              'nama_tugas'        => $nama_tugas,
+              'deskripsi'         => $deskripsi,
+              'batas_pengumpulan' => $batas_pengumpulan,
+              'kelas'             => $kelas,
+              'file_tugas'        => $file_tugas,
+              'id_dosen'          => $id_dosen,
+              'matakuliah'        => $matakuliah,
+              'kategori'          => $kategori
+          );
+
+          $query = $this->Tugas_model->insertTugas($data);
+
+          if ($query) {
+            redirect(base_url('Dashboard/lihat_tugas'));
+          }
+        }
+      }
+    }
+
+    public function hapus_tugas($id)
+    {
+      $query = $this->Tugas_model->deleteTugas($id);
+      if ($query) {
+        return redirect(base_url('Dashboard/lihat_tugas'));
+      }
+    }
+// Akhir Modul Tugas------------------------------------------------------------
+
+// Modul Nilai / Pengumpulan----------------------------------------------------
+    public function file_pengumpulan($id)
+    {
+      $this->load->helper('download');
+      $fileinfo = $this->Nilai_model->filePengumpulan($id);
+      $file = '../mahasiswa/uploads/'.$fileinfo['file_pengumpulan'];
+      force_download($file, NULL);
+    }
+
+    public function daftar_pengumpulan()
+    {
+      $data['pengumpulan'] = $this->Nilai_model->getPengumpulan()->result();
+      $data['title']       = 'Lihat Pengumpulan';
+
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/daftar_pengumpulan',$data);
+      $this->load->view('layouts/footer');
+    }
+
+    public function lihat_nilai()
+    {
+      $data['nilai']  = $this->Nilai_model->getNilai()->result();
+      $data['title']  = 'Lihat Nilai';
+
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/lihat_nilai',$data);
+      $this->load->view('layouts/footer');
+    }
+
+    public function edit_nilai($id)
+    {
+      $data['nilai']  = $this->Nilai_model->getNilaiSingle($id)->row();
+      $data['title']  = 'Edit Nilai';
+
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/edit_nilai',$data);
+      $this->load->view('layouts/footer');
+    }
+
+    public function proses_edit_nilai($id)
+    {
+      $this->form_validation->set_rules('nilai','Nilai','required|numeric');
+      if ($this->form_validation->run() == FALSE) {
+        $this->edit_nilai($id);
+      }else {
+        $nilai          = $this->input->post('nilai');
+        $data = array(
+            'nilai'  => $nilai,
+        );
+        $result = $this->Nilai_model->updateNilai($id,$data);
+        redirect(base_url('Dashboard/lihat_nilai'));
+      }
+    }
+
+    public function input_nilai($id)
+    {
+      $data['pengumpulan'] = $this->Nilai_model->getPengumpulanSingle($id)->row();
+      $data['title']       = 'Input Nilai';
+
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/input_nilai',$data);
+      $this->load->view('layouts/footer');
+    }
+
+    public function proses_input_nilai($id)
+    {
+      $this->form_validation->set_rules('nilai','Nilai','required|numeric');
+      if ($this->form_validation->run() == FALSE) {
+        $this->input_nilai($id);
+      }else {
+        $id_nilai       = $this->Nilai_model->idNilai();
+        $nilai          = $this->input->post('nilai');
+        $id_mahasiswa   = $this->input->post('id_mahasiswa');
+        $keterangan     = $this->input->post('keterangan');
+        $id_pengumpulan = $id;
+        $data = array(
+            'id_nilai'       => $id_nilai,
+            'nilai'          => $nilai,
+            'id_mahasiswa'   => $id_mahasiswa,
+            'keterangan'     => $keterangan,
+            'id_pengumpulan' => $id_pengumpulan,
+        );
+        $result = $this->Nilai_model->insertNilai($data);
+        redirect(base_url('Dashboard/lihat_nilai'));
+      }
+    }
+
+    public function lihat_komplain()
+    {
+      $data['komplain']  = $this->Nilai_model->getKomplain()->result();
+      $data['title']     = 'Lihat Komplain';
+
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/lihat_komplain',$data);
+      $this->load->view('layouts/footer');
+    }
+
+    public function komplain_nilai($id)
+    {
+      $data['komplain']  = $this->Nilai_model->getKomplainSingle($id)->row();
+      $data['title']     = 'Detail Komplain';
+
+      $this->load->view('layouts/header',$data);
+      $this->load->view('dashboard/komplain_nilai',$data);
+      $this->load->view('layouts/footer');
+    }
+
+    public function file_komplain($id)
+    {
+      $this->load->helper('download');
+      $fileinfo = $this->Nilai_model->fileKomplain($id);
+      $file = '../mahasiswa/uploads/'.$fileinfo['file_komplain'];
+      force_download($file, NULL);
+    }
+
+}
